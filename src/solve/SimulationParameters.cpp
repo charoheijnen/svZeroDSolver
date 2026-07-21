@@ -252,6 +252,19 @@ SimulationParameters load_simulation_params(const nlohmann::json& config) {
 
 void load_simulation_model(const nlohmann::json& config, Model& model) {
   DEBUG_MSG("Loading model");
+
+  // Set cardiac period from simulation_parameters so activation functions
+  // have it available while blocks are created below. May already be set by
+  // closed_loop_blocks.
+  if (model.cardiac_cycle_period < 0.0 &&
+      config.contains("simulation_parameters") &&
+      config["simulation_parameters"].contains("cardiac_period")) {
+    double period = config["simulation_parameters"]["cardiac_period"];
+    if (period > 0.0) {
+      model.cardiac_cycle_period = period;
+    }
+  }
+
   // Create list to store block connections while generating blocks
   std::vector<std::tuple<std::string, std::string>> connections;
 
@@ -335,10 +348,18 @@ void create_vessels(
         JsonWrapper(config, component, "vessel_name", i);
     const auto& vessel_values = vessel_config["zero_d_element_values"];
     const std::string vessel_name = vessel_config["vessel_name"];
+    const std::string vessel_type = vessel_config["zero_d_element_type"];
     vessel_id_map.insert({vessel_config["vessel_id"], vessel_name});
 
-    generate_block(model, vessel_values, vessel_config["zero_d_element_type"],
-                   vessel_name);
+    generate_block(model, vessel_values, vessel_type, vessel_name);
+
+    // Create and set activation_function for vessel types that use one
+    if (vessel_type == "ChamberSphere") {
+      auto act_func = generate_activation_function(
+          model, vessel_config["activation_function"], vessel_name);
+      model.get_block(vessel_name)
+          ->set_activation_function(std::move(act_func));
+    }
 
     // Read connected boundary conditions
     if (vessel_config.contains("boundary_conditions")) {
@@ -599,16 +620,6 @@ void create_chambers(
     Model& model,
     std::vector<std::tuple<std::string, std::string>>& connections,
     const nlohmann::json& config, const std::string& component) {
-  // Set cardiac period from simulation_parameters so activation functions have
-  // it. May already be set by closed_loop_blocks.
-  if (model.cardiac_cycle_period < 0.0 &&
-      config.contains("simulation_parameters") &&
-      config["simulation_parameters"].contains("cardiac_period")) {
-    double period = config["simulation_parameters"]["cardiac_period"];
-    if (period > 0.0) {
-      model.cardiac_cycle_period = period;
-    }
-  }
   for (size_t i = 0; i < config[component].size(); i++) {
     const auto& chamber_config = JsonWrapper(config, component, "name", i);
     std::string chamber_type = chamber_config["type"];

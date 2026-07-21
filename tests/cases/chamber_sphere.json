@@ -26,7 +26,8 @@
     "steady_initial": false,
     "output_variable_based": true,
     "absolute_tolerance": 1e-9,
-    "output_all_cycles": true
+    "output_all_cycles": true,
+    "cardiac_period": 1.0
   },
   "vessels": [
     {
@@ -57,7 +58,10 @@
         "eta": 10.0,
         "sigma_max": 185e3,
         "alpha_max": 30.0,
-        "alpha_min": -30.0,
+        "alpha_min": -30.0
+      },
+      "activation_function": {
+        "type": "double_tanh",
         "tsys": 0.17,
         "tdias": 0.484,
         "steepness": 0.005

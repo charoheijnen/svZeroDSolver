@@ -110,24 +110,15 @@ void ChamberSphere::update_solution(
 void ChamberSphere::get_elastance_values(std::vector<double>& parameters) {
   const double alpha_max = parameters[global_param_ids[ParamId::alpha_max]];
   const double alpha_min = parameters[global_param_ids[ParamId::alpha_min]];
-  const double tsys = parameters[global_param_ids[ParamId::tsys]];
-  const double tdias = parameters[global_param_ids[ParamId::tdias]];
-  const double steepness = parameters[global_param_ids[ParamId::steepness]];
 
-  const double t = model->time;
-
-  const auto T_cardiac = model->cardiac_cycle_period;
-  const auto t_in_cycle = fmod(model->time, T_cardiac);
-
-  const double S_plus = 0.5 * (1.0 + tanh((t_in_cycle - tsys) / steepness));
-  const double S_minus = 0.5 * (1.0 - tanh((t_in_cycle - tdias) / steepness));
-
-  // indicator function
-  const double f = S_plus * S_minus;
-
-  // activation rates
+  const double f = activation_function_->compute(model->time);
   const double act_t = alpha_max * f + alpha_min * (1 - f);
 
   act = std::abs(act_t);
   act_plus = std::max(act_t, 0.0);
+}
+
+void ChamberSphere::set_activation_function(
+    std::unique_ptr<ActivationFunction> af) {
+  activation_function_ = std::move(af);
 }
